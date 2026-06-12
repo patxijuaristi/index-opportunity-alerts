@@ -32,6 +32,7 @@ class TickerConfig:
 # Add new assets here — no other file needs to change.
 MONITORED_ASSETS: list[TickerConfig] = [
     TickerConfig(symbol="QQQ", name="Nasdaq-100 ETF (QQQ)"),
+    TickerConfig(symbol="SPY", name="S&P 500 ETF (SPY)"),
 ]
 
 
