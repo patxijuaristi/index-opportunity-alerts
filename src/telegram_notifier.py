@@ -60,6 +60,8 @@ def _format_message(
     current_level: int,
     last_level: Optional[int],
     level_info: dict[str, Any],
+    vix_value: Optional[float],
+    vix_info: Optional[dict],
 ) -> str:
     """Build the HTML-formatted Telegram message body.
 
@@ -72,6 +74,8 @@ def _format_message(
         current_level: New DCA signal level.
         last_level: Previous DCA level (``None`` on first run).
         level_info: Metadata dict for ``current_level`` from config.
+        vix_value: Latest VIX reading, or ``None`` if unavailable.
+        vix_info: VIX sentiment band metadata, or ``None`` if unavailable.
 
     Returns:
         UTF-8 HTML string ready for Telegram's ``parse_mode=HTML``.
@@ -91,6 +95,16 @@ def _format_message(
         f"  • <b>{period}d:</b>  {dd:+.2f}%"
         for period, dd in sorted(drawdowns.items())
     )
+
+    # VIX sentiment block
+    if vix_value is not None and vix_info is not None:
+        vix_block = (
+            f"📊 <b>Market Sentiment (VIX):</b> {vix_value:.1f}  "
+            f"{vix_info['emoji']} <b>{vix_info['label']}</b>\n"
+            f"  {vix_info['description']}\n\n"
+        )
+    else:
+        vix_block = ""
 
     # Action block
     if current_level == 0:
@@ -117,6 +131,7 @@ def _format_message(
         f"📉 <b>Drawdown breakdown:</b>\n"
         f"{drawdown_lines}\n"
         f"  ↳ <b>Reference (worst):</b>  {reference_drawdown:+.2f}%\n\n"
+        f"{vix_block}"
         f"{action_block}\n\n"
         f"<i>🕐 {timestamp}</i>"
     )
@@ -138,6 +153,8 @@ def send_alert(
     current_level: int,
     last_level: Optional[int],
     level_info: dict[str, Any],
+    vix_value: Optional[float] = None,
+    vix_info: Optional[dict] = None,
 ) -> bool:
     """Send a DCA signal alert via Telegram.
 
@@ -150,6 +167,8 @@ def send_alert(
         current_level: New DCA level.
         last_level: Previous DCA level (``None`` on first run).
         level_info: Level metadata from config.
+        vix_value: Latest VIX reading, or ``None`` if unavailable.
+        vix_info: VIX sentiment band metadata, or ``None`` if unavailable.
 
     Returns:
         ``True`` if the message was accepted by the Telegram API, ``False``
@@ -172,6 +191,8 @@ def send_alert(
         current_level=current_level,
         last_level=last_level,
         level_info=level_info,
+        vix_value=vix_value,
+        vix_info=vix_info,
     )
 
     url: str = _TELEGRAM_API_URL.format(token=token)
@@ -222,6 +243,8 @@ def send_flash_crash_alert(
     name: str,
     current_price: float,
     daily_change: float,
+    vix_value: Optional[float] = None,
+    vix_info: Optional[dict] = None,
 ) -> bool:
     """Send an urgent flash-crash alert via Telegram.
 
@@ -233,6 +256,8 @@ def send_flash_crash_alert(
         name: Human-readable asset name.
         current_price: Latest close price.
         daily_change: Close-to-close percentage change that triggered the alert.
+        vix_value: Latest VIX reading, or ``None`` if unavailable.
+        vix_info: VIX sentiment band metadata, or ``None`` if unavailable.
 
     Returns:
         ``True`` if the message was delivered, ``False`` on any error.
@@ -247,11 +272,21 @@ def send_flash_crash_alert(
 
     timestamp: str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
+    if vix_value is not None and vix_info is not None:
+        vix_block = (
+            f"📊 <b>VIX:</b> {vix_value:.1f}  "
+            f"{vix_info['emoji']} <b>{vix_info['label']}</b>\n"
+            f"  {vix_info['description']}\n\n"
+        )
+    else:
+        vix_block = ""
+
     message: str = (
         f"⚡ <b>FLASH CRASH ALERT</b>\n\n"
         f"<b>Asset:</b> {name}  (<code>{symbol}</code>)\n"
         f"<b>Price:</b> ${current_price:,.2f}\n"
         f"<b>Daily drop:</b> <b>{daily_change:+.2f}%</b>\n\n"
+        f"{vix_block}"
         f"⚠️ Single-day close-to-close drop exceeded the −5 % flash crash threshold.\n"
         f"This alert fires independently of the regular DCA signal level.\n\n"
         f"💡 Consider deploying a portion of your cash reserve immediately "

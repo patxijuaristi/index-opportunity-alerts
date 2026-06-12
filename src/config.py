@@ -114,3 +114,49 @@ STATE_FILE: str = "state/state.json"
 # A single-day close-to-close drop equal to or worse than this value triggers
 # an immediate alert, independently of the DCA level state machine.
 FLASH_CRASH_DAILY_THRESHOLD: float = -5.0
+
+
+# ---------------------------------------------------------------------------
+# VIX sentiment bands
+# ---------------------------------------------------------------------------
+
+# Ordered from lowest VIX (greed) to highest (extreme fear).
+# A VIX reading falls in the last band whose ``min`` it meets or exceeds.
+VIX_BANDS: list[dict] = [
+    {
+        "min": 0,
+        "label": "Extreme Greed",
+        "emoji": "😁",
+        "description": "Options are cheap — market is euphoric, low fear.",
+    },
+    {
+        "min": 15,
+        "label": "Greed",
+        "emoji": "🙂",
+        "description": "Positive sentiment, moderate complacency.",
+    },
+    {
+        "min": 20,
+        "label": "Neutral",
+        "emoji": "😐",
+        "description": "Mixed sentiment, elevated but not alarming volatility.",
+    },
+    {
+        "min": 25,
+        "label": "Fear",
+        "emoji": "😟",
+        "description": "Investors are nervous, volatility picking up.",
+    },
+    {
+        "min": 30,
+        "label": "High Fear",
+        "emoji": "😨",
+        "description": "Significant fear, options pricing heavy protection.",
+    },
+    {
+        "min": 40,
+        "label": "Extreme Fear",
+        "emoji": "😱",
+        "description": "Panic territory — historically a strong contrarian buy signal.",
+    },
+]

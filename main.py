@@ -3,12 +3,13 @@
 Index Opportunity Alerts — entry point.
 
 Orchestrates the full pipeline for every configured asset:
-  1. Fetch historical price data from Yahoo Finance
-  2. Detect flash crash (single-day drop ≥ 5 %) and alert immediately
-  3. Calculate drawdowns for all configured periods (5d, 30d, 60d, 90d, 180d)
-  4. Determine the current DCA signal level
-  5. Compare with persisted state and send a Telegram alert if level changed
-  6. Persist the updated state
+  1. Fetch VIX (once, shared across all assets)
+  2. Fetch historical price data from Yahoo Finance
+  3. Detect flash crash (single-day drop ≥ 5 %) and alert immediately
+  4. Calculate drawdowns for all configured periods (5d, 30d, 60d, 90d, 180d)
+  5. Determine the current DCA signal level
+  6. Compare with persisted state and send a Telegram alert if level changed
+  7. Persist the updated state
 
 This module contains **no business logic** — it only wires together the
 modules in ``src/``.
@@ -19,9 +20,9 @@ import sys
 from typing import Optional
 
 from src.config import HISTORICAL_DAYS, MIN_TRADING_DAYS, MONITORED_ASSETS
-from src.data_fetcher import fetch_historical_data
+from src.data_fetcher import fetch_historical_data, fetch_vix
 from src.drawdown import calculate_all_drawdowns, calculate_daily_change, get_reference_drawdown
-from src.signals import get_dca_level, get_level_info, is_flash_crash, should_send_alert
+from src.signals import get_dca_level, get_level_info, get_vix_sentiment, is_flash_crash, should_send_alert
 from src.state_manager import load_state, save_state
 from src.telegram_notifier import send_alert, send_flash_crash_alert
 
@@ -43,13 +44,21 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def process_asset(symbol: str, name: str, periods: list[int]) -> bool:
+def process_asset(
+    symbol: str,
+    name: str,
+    periods: list[int],
+    vix_value: Optional[float],
+    vix_info: Optional[dict],
+) -> bool:
     """Run the full monitoring pipeline for a single asset.
 
     Args:
         symbol: Ticker symbol (e.g. ``'QQQ'``).
         name: Human-readable asset name for log messages and alerts.
         periods: Drawdown lookback windows in trading days.
+        vix_value: Latest VIX reading, or ``None`` if unavailable.
+        vix_info: VIX sentiment band metadata, or ``None`` if unavailable.
 
     Returns:
         ``True`` when the asset was processed successfully (whether or not
@@ -105,6 +114,8 @@ def process_asset(symbol: str, name: str, periods: list[int]) -> bool:
             name=name,
             current_price=current_price,
             daily_change=daily_change,
+            vix_value=vix_value,
+            vix_info=vix_info,
         )
 
     # ------------------------------------------------------------------ #
@@ -169,6 +180,8 @@ def process_asset(symbol: str, name: str, periods: list[int]) -> bool:
         current_level=current_level,
         last_level=last_level,
         level_info=level_info,
+        vix_value=vix_value,
+        vix_info=vix_info,
     )
 
     if not alert_sent:
@@ -205,6 +218,15 @@ def main() -> int:
     """
     logger.info("Index Opportunity Alerts — run started")
 
+    # VIX is global (S&P 500 implied vol) — fetch once and share across assets
+    vix_value: Optional[float] = None
+    vix_info: Optional[dict] = None
+    try:
+        vix_value = fetch_vix()
+        vix_info = get_vix_sentiment(vix_value)
+    except RuntimeError as exc:
+        logger.warning("VIX fetch failed — alerts will be sent without sentiment context: %s", exc)
+
     results: list[tuple[str, bool]] = []
 
     for asset in MONITORED_ASSETS:
@@ -213,6 +235,8 @@ def main() -> int:
                 symbol=asset.symbol,
                 name=asset.name,
                 periods=asset.periods,
+                vix_value=vix_value,
+                vix_info=vix_info,
             )
         except EnvironmentError as exc:
             # Missing secrets: abort immediately so the CI job fails visibly

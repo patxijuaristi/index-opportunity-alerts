@@ -76,3 +76,36 @@ def fetch_historical_data(symbol: str, days: int = 300) -> pd.DataFrame:
         raise RuntimeError(
             f"Failed to fetch market data for '{symbol}': {exc}"
         ) from exc
+
+
+def fetch_vix() -> float:
+    """Fetch the latest closing value of the CBOE Volatility Index (VIX).
+
+    The VIX (ticker ``^VIX``) measures the 30-day implied volatility of the
+    S&P 500 derived from options prices.  High values indicate fear/panic;
+    low values indicate complacency/greed.
+
+    Returns:
+        Latest VIX closing value as a float (e.g. ``18.42``).
+
+    Raises:
+        RuntimeError: If the Yahoo Finance request fails or returns no data.
+    """
+    try:
+        ticker = yf.Ticker("^VIX")
+        df: pd.DataFrame = ticker.history(period="5d", auto_adjust=True)
+
+        if df.empty:
+            raise RuntimeError("Yahoo Finance returned no data for '^VIX'")
+
+        if df.index.tz is not None:
+            df.index = df.index.tz_localize(None)
+
+        vix_value: float = round(float(df["Close"].iloc[-1]), 2)
+        logger.info("VIX latest close: %.2f", vix_value)
+        return vix_value
+
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(f"Failed to fetch VIX data: {exc}") from exc

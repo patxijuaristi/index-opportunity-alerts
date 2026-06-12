@@ -8,7 +8,7 @@ whether an alert should be dispatched.  All functions are pure.
 import logging
 from typing import Any, Optional
 
-from src.config import DCA_LEVEL_THRESHOLDS, DCA_LEVELS, FLASH_CRASH_DAILY_THRESHOLD
+from src.config import DCA_LEVEL_THRESHOLDS, DCA_LEVELS, FLASH_CRASH_DAILY_THRESHOLD, VIX_BANDS
 
 logger = logging.getLogger(__name__)
 
@@ -116,3 +116,32 @@ def is_flash_crash(daily_change: float) -> bool:
         result,
     )
     return result
+
+
+def get_vix_sentiment(vix_value: float) -> dict:
+    """Return the sentiment band metadata for a given VIX reading.
+
+    Bands are defined in ``VIX_BANDS`` in ``src/config.py`` and are ordered
+    from lowest (Extreme Greed) to highest (Extreme Fear).  The function
+    walks the list and returns the last band whose ``min`` threshold the
+    VIX value meets or exceeds.
+
+    Args:
+        vix_value: Latest VIX closing value (e.g. ``22.5``).
+
+    Returns:
+        Dict with keys ``min``, ``label``, ``emoji``, and ``description``
+        for the matching band.
+    """
+    band: dict = VIX_BANDS[0]
+    for b in VIX_BANDS:
+        if vix_value >= b["min"]:
+            band = b
+
+    logger.info(
+        "VIX %.2f → sentiment: %s %s",
+        vix_value,
+        band["emoji"],
+        band["label"],
+    )
+    return band
