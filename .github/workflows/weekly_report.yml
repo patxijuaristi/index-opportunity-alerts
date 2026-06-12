@@ -1,0 +1,33 @@
+name: Weekly Market Digest
+
+on:
+  schedule:
+    - cron: "0 20 * * 1" # Every Monday at 20:00 UTC (after US market close)
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+permissions:
+  contents: read # Read-only — weekly report does not update state
+
+jobs:
+  weekly-digest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send weekly digest
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python weekly_report.py

@@ -321,3 +321,61 @@ def send_flash_crash_alert(
     except requests.exceptions.RequestException as exc:
         logger.error("Telegram flash crash alert failed for %s: %s", symbol, exc)
         return False
+
+
+def send_telegram_message(message: str) -> bool:
+    """Send a pre-formatted HTML message via Telegram.
+
+    Generic low-level sender used by the weekly report and any caller that
+    has already built its own message string.  All Telegram API interaction
+    is centralised here so there is only one place to update if the API
+    changes.
+
+    Args:
+        message: UTF-8 HTML string to send (max 4096 characters).
+
+    Returns:
+        ``True`` if the message was accepted by the Telegram API, ``False``
+        on any network or API error.
+
+    Raises:
+        EnvironmentError: If required environment variables are absent.
+    """
+    try:
+        token, chat_id = _get_credentials()
+    except EnvironmentError:
+        raise
+
+    url: str = _TELEGRAM_API_URL.format(token=token)
+    payload: dict[str, Any] = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+
+    try:
+        response = requests.post(
+            url, json=payload, timeout=_REQUEST_TIMEOUT_SECONDS
+        )
+        response.raise_for_status()
+
+        result: dict[str, Any] = response.json()
+        if result.get("ok"):
+            logger.info("Telegram message sent successfully.")
+            return True
+
+        logger.error("Telegram API rejected the message: %s", result)
+        return False
+
+    except requests.exceptions.Timeout:
+        logger.error(
+            "Telegram API request timed out after %ds.", _REQUEST_TIMEOUT_SECONDS
+        )
+        return False
+    except requests.exceptions.HTTPError as exc:
+        logger.error("Telegram API HTTP error: %s", exc)
+        return False
+    except requests.exceptions.RequestException as exc:
+        logger.error("Telegram API network error: %s", exc)
+        return False
