@@ -60,6 +60,21 @@ def fetch_historical_data(symbol: str, days: int = 300) -> pd.DataFrame:
         # Sort ascending (yfinance usually does this, but be explicit)
         df = df.sort_index()
 
+        # Drop rows where Close is NaN — yfinance occasionally returns them
+        # for market holidays or incomplete intraday snapshots.
+        n_before: int = len(df)
+        df = df.dropna(subset=["Close"])
+        dropped: int = n_before - len(df)
+        if dropped:
+            logger.warning(
+                "Dropped %d row(s) with NaN Close for %s.", dropped, symbol
+            )
+
+        if df.empty:
+            raise RuntimeError(
+                f"No valid (non-NaN) Close prices returned for '{symbol}'"
+            )
+
         current_price: float = float(df["Close"].iloc[-1])
         logger.info(
             "Fetched %d trading days for %s — latest close: $%.2f",

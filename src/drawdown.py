@@ -12,6 +12,7 @@ and ``current_price`` is the most recent closing price.
 """
 
 import logging
+import math
 
 import pandas as pd
 
@@ -42,6 +43,12 @@ def calculate_drawdown(df: pd.DataFrame, period: int) -> float:
     window: pd.Series = df["Close"].iloc[-period:]
     max_price: float = float(window.max())
     current_price: float = float(df["Close"].iloc[-1])
+
+    if math.isnan(max_price) or math.isnan(current_price) or max_price == 0:
+        raise ValueError(
+            f"Invalid price data for {period}-day window: "
+            f"max={max_price}, current={current_price}"
+        )
 
     drawdown: float = round(((current_price - max_price) / max_price) * 100, 2)
 
