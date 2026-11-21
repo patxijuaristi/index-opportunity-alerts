@@ -14,6 +14,8 @@ from typing import Any, Optional
 
 import requests
 
+from src.signals import get_dca_level, get_level_info
+
 logger = logging.getLogger(__name__)
 
 _TELEGRAM_API_URL = "https://api.telegram.org/bot{token}/sendMessage"
@@ -80,9 +82,9 @@ def _format_message(
     Returns:
         UTF-8 HTML string ready for Telegram's ``parse_mode=HTML``.
     """
-    # Per-period drawdown breakdown
+    # Per-period drawdown breakdown, color-coded by severity
     drawdown_lines: str = "\n".join(
-        f"  • <b>{period}d:</b>  {dd:+.2f}%"
+        f"  {get_level_info(get_dca_level(dd))['emoji']} <b>{period}d:</b>  {dd:+.2f}%"
         for period, dd in sorted(drawdowns.items())
     )
 

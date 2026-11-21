@@ -143,7 +143,7 @@ def _format_asset_block(report: dict[str, Any]) -> str:
     trailing: dict[str, Optional[float]] = report["trailing_returns"]
 
     drawdown_lines: str = "\n".join(
-        f"  • <b>{period}d:</b>  {dd:+.2f}%"
+        f"  {get_level_info(get_dca_level(dd))['emoji']} <b>{period}d:</b>  {dd:+.2f}%"
         for period, dd in sorted(report["drawdowns"].items())
     )
 
