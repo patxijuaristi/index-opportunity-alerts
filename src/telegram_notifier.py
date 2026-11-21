@@ -80,16 +80,6 @@ def _format_message(
     Returns:
         UTF-8 HTML string ready for Telegram's ``parse_mode=HTML``.
     """
-    # Direction indicator
-    if last_level is None:
-        direction = "🆕 First signal detected"
-    elif current_level > last_level:
-        direction = f"📉 Drawdown deepening  ({last_level} → {current_level})"
-    elif current_level < last_level:
-        direction = f"📈 Market recovering  ({last_level} → {current_level})"
-    else:
-        direction = f"➡️ Level unchanged  ({current_level})"
-
     # Per-period drawdown breakdown
     drawdown_lines: str = "\n".join(
         f"  • <b>{period}d:</b>  {dd:+.2f}%"
@@ -99,42 +89,20 @@ def _format_message(
     # VIX sentiment block
     if vix_value is not None and vix_info is not None:
         vix_block = (
-            f"📊 <b>Market Sentiment (VIX):</b> {vix_value:.1f}  "
-            f"{vix_info['emoji']} <b>{vix_info['label']}</b>\n"
-            f"  {vix_info['description']}\n\n"
+            f"📊 <b>VIX:</b> {vix_value:.1f}  "
+            f"{vix_info['emoji']} {vix_info['label']}\n\n"
         )
     else:
         vix_block = ""
 
-    # Action block
-    if current_level == 0:
-        action_block = (
-            "📊 Market is healthy.\n"
-            "Continue your <b>regular DCA schedule</b>."
-        )
-    else:
-        action_block = (
-            f"💡 <b>DCA Signal:</b> {level_info['description']}\n"
-            f"   Multiplier: <b>{level_info['multiplier']}×</b> regular DCA"
-        )
-
-    timestamp: str = (
-        datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    )
-
     message = (
-        f"{level_info['emoji']} <b>DCA Index Opportunity Alert</b>\n\n"
-        f"<b>Asset:</b> {name}  (<code>{symbol}</code>)\n"
-        f"<b>Price:</b> ${current_price:,.2f}\n"
-        f"<b>Signal level:</b> {current_level} — {level_info['label']}\n"
-        f"<b>Status:</b> {direction}\n\n"
+        f"{level_info['emoji']} <b>{name}</b>  (<code>{symbol}</code>)\n\n"
+        f"<b>Price:</b> ${current_price:,.2f}\n\n"
         f"📉 <b>Drawdown breakdown:</b>\n"
         f"{drawdown_lines}\n"
         f"  ↳ <b>Reference (worst):</b>  {reference_drawdown:+.2f}%\n\n"
         f"{vix_block}"
-        f"{action_block}\n\n"
-        f"<i>🕐 {timestamp}</i>"
-    )
+    ).rstrip()
 
     return message
 

@@ -7,7 +7,6 @@ schedule regardless of state — it is a digest, not a state-gated alert.
 """
 
 import logging
-from datetime import datetime, timezone
 from typing import Any, Optional
 
 import pandas as pd
@@ -159,10 +158,7 @@ def _format_asset_block(report: dict[str, Any]) -> str:
         f"({report['distance_from_high']:+.2f}% from it)\n\n"
         f"📉 <b>Drawdown from recent peaks:</b>\n"
         f"{drawdown_lines}\n"
-        f"  ↳ <b>Reference:</b> {report['reference_drawdown']:+.2f}%\n\n"
-        f"🎯 <b>DCA Signal:</b> Level {report['dca_level']} — "
-        f"{level_info['label']}\n"
-        f"   {level_info['description']}"
+        f"  ↳ <b>Reference:</b> {report['reference_drawdown']:+.2f}%"
     )
 
 
@@ -185,9 +181,8 @@ def format_weekly_report(
     """
     if vix_value is not None and vix_info is not None:
         vix_block = (
-            f"📊 <b>Market Sentiment (VIX):</b> {vix_value:.1f}  "
-            f"{vix_info['emoji']} <b>{vix_info['label']}</b>\n"
-            f"  {vix_info['description']}\n\n"
+            f"📊 <b>VIX:</b> {vix_value:.1f}  "
+            f"{vix_info['emoji']} {vix_info['label']}\n\n"
         )
     else:
         vix_block = ""
@@ -195,12 +190,9 @@ def format_weekly_report(
     asset_blocks: str = "\n\n".join(
         _format_asset_block(r) for r in asset_reports
     )
-    timestamp: str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     return (
-        f"📋 <b>Weekly Market Digest</b>\n"
-        f"<i>Week ending {report_date}</i>\n\n"
+        f"📋 <b>Weekly Market Digest</b>\n\n"
         f"{vix_block}"
-        f"{asset_blocks}\n\n"
-        f"<i>🕐 {timestamp}</i>"
+        f"{asset_blocks}"
     )
